@@ -128,6 +128,7 @@ namespace ConsoleApp4GenerateChart
                 foreach (string file in files)
                 {
                     iTextSharp.text.Image image = iTextSharp.text.Image.GetInstance(file);
+                    image.ScaleToFit(500, 350);
                     doc.Add(image);//加入影像
 
                 }
@@ -144,7 +145,9 @@ namespace ConsoleApp4GenerateChart
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Log.Error($"save2Pdf fail. ErrorMsg={ex.Message}. Stacktrace={ex.StackTrace}");
+                doc.Close();
+                File.Delete(outputPath);
             }
             finally
             {
@@ -245,8 +248,8 @@ namespace ConsoleApp4GenerateChart
             Chart chart = new Chart();
             chart.Titles.Add(serverName);
             chart.DataSource = dataSet.Tables[0];
-            chart.Width = 500;
-            chart.Height = 350;
+            chart.Width = 1000;
+            chart.Height = 700;
             //create serie...
             Series serie1 = new Series();
             serie1.Name = "Serie1";
