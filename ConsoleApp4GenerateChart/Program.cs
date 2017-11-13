@@ -34,7 +34,7 @@ namespace ConsoleApp4GenerateChart
             [Option('d', "debug", HelpText = "Log to files.")]
             public bool DebugFlag { get; set; }
 
-            [Option('D', "date", Required = true, HelpText = "Date want to parse.")]
+            [Option('D', "date", HelpText = "Date want to parse.")]
             public string Date { get; set; }
 
 
@@ -76,14 +76,21 @@ namespace ConsoleApp4GenerateChart
             var options = new Options();
             if (CommandLine.Parser.Default.ParseArguments(args, options))
             {
-                // Values are available here
+                
                 if (options.DebugFlag)
                     Log.FileOutput(true, Path.Combine(Directory.GetCurrentDirectory(), "Log"), "genReportLog");
+
+                string date = options.Date;
+                if (string.IsNullOrEmpty(options.Date))
+                {
+                    //reqular parser
+                    date = DateTime.Now.AddMonths(-1).ToString("MM/dd/yyyy");
+                }
 
                 MyReportOutputter mro = new MyReportOutputter();
 
                 if (options.InputPath != null && options.OutputPath != null)
-                    mro.StartBy(options.Date, options.InputPath, options.OutputPath);
+                    mro.StartBy(date, options.InputPath, options.OutputPath);
 
                 else
                     mro.StartBy(options.Date);

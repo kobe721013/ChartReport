@@ -62,6 +62,7 @@ namespace ConsoleApp4GenerateChart
 
         private void cleanTemoFolder()
         {
+            
             DirectoryInfo dir = new DirectoryInfo(_DefaultAccessPath);
 
 
@@ -93,35 +94,53 @@ namespace ConsoleApp4GenerateChart
                 createChart(item.Key, item.Value, Path.Combine(chartTempPath, $"{item.Key}.png"));
             }
 
+
             //prepare pdfTable
             Dictionary<string, PdfPTable> pdfTables = new Dictionary<string, PdfPTable>();
+#if false
+
             foreach (KeyValuePair<string, double[]> item in tableDataSets)
             {
                 var tableData = createTable(item.Key, item.Value);
                 pdfTables.Add(item.Key, tableData);
             }
+#else
+            var tableData = createTable2();
+            pdfTables.Add("t1", tableData);
+#endif
 
             save2Pdf(pdfTables, chartTempPath, outputPath);
 
             return true;
         }
 
+        
         private void save2Pdf(Dictionary<string, PdfPTable> pdfTables, string chartTempPath, string outputPath)
         {
-            Document doc = new Document(PageSize.A4, 50, 50, 80, 50);
+            Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
             try
             {
 
                 FileStream fs = new FileStream(outputPath, FileMode.Create);
 
                 PdfWriter pw = PdfWriter.GetInstance(doc, fs);
+                //PdfDestination pdfDest = new PdfDestination(PdfDestination.XYZ, 0, doc.PageSize.Height, 2.00f);
+
                 PdfWriterEvents writerEvent = new PdfWriterEvents("");
                 pw.PageEvent = writerEvent;
 
 
                 doc.Open();
                 doc.AddTitle("Statistical report");//文件標題
-                doc.AddAuthor("NoMan");//文件作者
+                doc.AddAuthor("NoName");//文件作者
+
+                //header image
+                Uri uri = new Uri(@"\Resources\header.jpg", UriKind.Relative);
+                System.Drawing.Image testImage = System.Drawing.Image.FromHbitmap(Properties.Resources.header.GetHbitmap());
+
+                iTextSharp.text.Image headerImage = iTextSharp.text.Image.GetInstance(testImage, System.Drawing.Imaging.ImageFormat.Jpeg);
+                headerImage.ScaleToFit(500, 64);
+                doc.Add(headerImage);
 
                 //save image to pdf
                 string[] files = Directory.GetFiles(chartTempPath);
@@ -142,6 +161,10 @@ namespace ConsoleApp4GenerateChart
                     doc.Add(item.Value);
                     doc.Add(new Paragraph(" "));//NewLine
                 }
+
+
+                //footer
+                doc.Add(createFooter());
             }
             catch (Exception ex)
             {
@@ -154,6 +177,7 @@ namespace ConsoleApp4GenerateChart
                 doc.Close();
             }
         }
+
 
         private PdfPTable createTable(string serverName, double[] values)
         {
@@ -169,6 +193,9 @@ namespace ConsoleApp4GenerateChart
             iTextSharp.text.Font ChFont = new iTextSharp.text.Font(bfChinese, 12);
             iTextSharp.text.Font ChFont_green = new iTextSharp.text.Font(bfChinese, 40, iTextSharp.text.Font.NORMAL, BaseColor.GREEN);
             iTextSharp.text.Font ChFont_msg = new iTextSharp.text.Font(bfChinese, 12, iTextSharp.text.Font.ITALIC, BaseColor.RED);
+
+            
+
 
 
             // 產生表格 -- START
@@ -220,15 +247,123 @@ namespace ConsoleApp4GenerateChart
         }
 
 
+
+        private PdfPTable createTable2()
+        {
+            // Document doc = new Document(PageSize.A4, 50, 50, 80, 50); // 設定PageSize, Margin, left, right, top, bottom
+            // MemoryStream ms = new MemoryStream();
+            // PdfWriter pw = PdfWriter.GetInstance(doc, ms);
+
+            ////    字型設定
+            // 在PDF檔案內容中要顯示中文，最重要的是字型設定，如果沒有正確設定中文字型，會造成中文無法顯示的問題。
+            // 首先設定基本字型：kaiu.ttf 是作業系統系統提供的標楷體字型，IDENTITY_H 是指編碼(The Unicode encoding with horizontal writing)，及是否要將字型嵌入PDF 檔中。
+            // 再來針對基本字型做變化，例如Font Size、粗體斜體以及顏色等。當然你也可以採用其他中文字體字型。
+            //BaseFont bfChinese = BaseFont.CreateFont("C:\\Windows\\Fonts\\kaiu.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            PdfPCell cell = null;
+            iTextSharp.text.Font ChFont = new iTextSharp.text.Font(bfChinese, 12);
+            iTextSharp.text.Font ChFont_green = new iTextSharp.text.Font(bfChinese, 40, iTextSharp.text.Font.NORMAL, BaseColor.GREEN);
+            iTextSharp.text.Font ChFont_msg = new iTextSharp.text.Font(bfChinese, 12, iTextSharp.text.Font.ITALIC, BaseColor.RED);
+
+            iTextSharp.text.Font chHeaderBoldFont = new iTextSharp.text.Font(bfChinese, 12, iTextSharp.text.Font.BOLD);
+            
+            iTextSharp.text.Font chBodyFont = new iTextSharp.text.Font(bfChinese, 10, iTextSharp.text.Font.NORMAL);
+
+
+            iTextSharp.text.Font engHeaderBoldFont = new iTextSharp.text.Font(iTextSharp.text.Font.FontFamily.HELVETICA, 12, iTextSharp.text.Font.BOLD);
+
+            iTextSharp.text.Font engBodyFont = new iTextSharp.text.Font(iTextSharp.text.Font.FontFamily.HELVETICA, 8, iTextSharp.text.Font.NORMAL);
+
+            BaseColor hightlightBackground = new BaseColor(203, 226, 237);
+
+            // 產生表格 -- START
+            // 建立4個欄位表格之相對寬度
+            PdfPTable pt = new PdfPTable(new float[] { 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
+            // 表格總寬
+            pt.TotalWidth = 500f;
+            pt.LockedWidth = true;
+
+            // 設定表頭
+            PdfPCell header = new PdfPCell(new Phrase("Deduplication Rate", engHeaderBoldFont));
+            header.Colspan = 13;
+            header.HorizontalAlignment = Element.ALIGN_CENTER;// 表頭內文置中
+            header.BackgroundColor = hightlightBackground;
+            header.Padding = 5;
+            pt.AddCell(header);
+
+            //header (1,1)
+            cell = new PdfPCell(new Phrase(@"Server\Months", engHeaderBoldFont));
+            cell.BackgroundColor = hightlightBackground;
+            cell.HorizontalAlignment = Element.ALIGN_CENTER;
+            cell.VerticalAlignment = Element.ALIGN_CENTER;
+            pt.AddCell(cell);
+
+            //header (1,2~12)
+            for (int i = 1; i <= 12; i++)
+            {
+                cell = new PdfPCell(new Phrase(i.ToString(), engHeaderBoldFont));
+                cell.BackgroundColor = hightlightBackground;
+                cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                cell.VerticalAlignment = Element.ALIGN_CENTER;
+                cell.Padding = 5;   
+                pt.AddCell(cell);
+            }
+
+
+            foreach (KeyValuePair<string, double[]> item in tableDataSets)
+            {
+                //server name
+                cell = new PdfPCell(new Phrase(item.Key, engBodyFont));
+                cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                cell.VerticalAlignment = Element.ALIGN_CENTER;
+                cell.Padding = 5;
+                pt.AddCell(cell);
+
+                //1~12 values
+                for (int i = 0; i < 12; i++)
+                {
+                    cell = new PdfPCell(new Phrase(item.Value[i].ToString(), engBodyFont));
+
+                    cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    cell.VerticalAlignment = Element.ALIGN_CENTER;
+                    cell.Padding = 5;
+                    pt.AddCell(cell);
+                }
+            }
+
+
+
+           
+            return pt;
+
+
+        }
+
+        private PdfPTable createFooter()
+        {
+            iTextSharp.text.Font chHeaderBoldFont = new iTextSharp.text.Font(bfChinese, 25, iTextSharp.text.Font.BOLD);
+            PdfPTable pt = new PdfPTable(new float[] { 1, 1 });
+            // 表格總寬
+            pt.TotalWidth = 500f;
+            pt.DefaultCell.Border = iTextSharp.text.Rectangle.NO_BORDER;
+
+            pt.AddCell(new Phrase("科長:", chHeaderBoldFont));
+            pt.AddCell(new Phrase("經辦:", chHeaderBoldFont));
+
+            return pt;
+        }
+
         private void createChart(string serverName, double[] values, string imageName)
         {
+            System.Drawing.Font seriesFont = new System.Drawing.Font("Consolas", 13.0f);
+            System.Drawing.Font axisTitleFont = new System.Drawing.Font("Consolas", 20.0f, FontStyle.Regular);
+            int axisValueMaxFontSize = 10;
 
-            //populate dataset with some demo data..
-
+            //dataSet
             DataSet dataSet = new DataSet();
             DataTable dt = new DataTable();
-            dt.Columns.Add("Months", typeof(string));
-            dt.Columns.Add("Used", typeof(int));
+            dt.Columns.Add("Months", typeof(int));
+            dt.Columns.Add("Used", typeof(double));
+            dt.Columns.Add("Free", typeof(double));
             DataRow r1 = dt.NewRow();
 
             double maxValue = values.Max();
@@ -237,60 +372,140 @@ namespace ConsoleApp4GenerateChart
             for (int i = 0; i < 12; i++)
             {
                 DataRow r = dt.NewRow();
-                r[0] = i + 1;
-                r[1] = values[i];
+                r[0] = i + 1;//months
+                r[1] = values[i];//used
+                r[2] = (double)values[i];//free
                 dt.Rows.Add(r);
             }
             dataSet.Tables.Add(dt);
 
+            //legend
+            Legend legend1 = new Legend();
+            legend1.Name = "Legend1";
+            legend1.Font = seriesFont;
+            //legend1.Position.Auto = false;
+            //legend1.Position.Y = 0;
+            //legend1.Position.X = 480;
 
-            //prepare chart control...
-            Chart chart = new Chart();
-            chart.Titles.Add(serverName);
-            chart.DataSource = dataSet.Tables[0];
-            chart.Width = 1000;
-            chart.Height = 700;
-            //create serie...
-            Series serie1 = new Series();
-            serie1.Name = "Serie1";
-            serie1.Color = _ChartSerieColor;//Color.FromArgb(112, 255, 200);
-            serie1.BorderColor = Color.FromArgb(164, 164, 164);
-            serie1.ChartType = SeriesChartType.Column;
+
+            //create Used serie...
+            Series usedSerie = new Series("Used");
+            usedSerie.Color = _ChartSerieColor;//Color.FromArgb(112, 255, 200);
+            usedSerie.BorderColor = Color.FromArgb(164, 164, 164);
+            usedSerie.ChartType = SeriesChartType.Column;
+
+            usedSerie.BorderDashStyle = ChartDashStyle.Solid;
+            usedSerie.BorderWidth = 1;
+            usedSerie.ShadowColor = Color.FromArgb(128, 128, 128);
+            usedSerie.ShadowOffset = 1;
+            usedSerie.IsValueShownAsLabel = true;
+            usedSerie.XValueMember = "Months";
+            usedSerie.YValueMembers = "Used";
+            usedSerie.Font = seriesFont;
+            usedSerie.BackSecondaryColor = Color.FromArgb(0, 102, 153);
+            usedSerie.LabelForeColor = Color.FromArgb(50, 50, 50);
+            
+            
+            
+
+            //Free series...
+            Series freeSerie = new Series("Free");
+            freeSerie.Color = Color.Orange;//Color.FromArgb(112, 255, 200);
+            //serie2.BorderColor = Color.Red;//Color.FromArgb(164, 164, 164);
+            freeSerie.ChartType = SeriesChartType.Column;
             //serie1.ChartType = SeriesChartType.Line;
-            serie1.BorderDashStyle = ChartDashStyle.Solid;
-            serie1.BorderWidth = 1;
-            serie1.ShadowColor = Color.FromArgb(128, 128, 128);
-            serie1.ShadowOffset = 1;
-            serie1.IsValueShownAsLabel = true;
-            serie1.XValueMember = "Months";
-            serie1.YValueMembers = "Used";
-            serie1.Font = new System.Drawing.Font("Consolas", 8.0f);
-            serie1.BackSecondaryColor = Color.FromArgb(0, 102, 153);
-            serie1.LabelForeColor = Color.FromArgb(50, 50, 50);
-            //serie1.LabelBackColor = Color.LightYellow;
+            freeSerie.BorderDashStyle = ChartDashStyle.Solid;
+            freeSerie.BorderWidth = 1;
+            freeSerie.ShadowColor = Color.FromArgb(128, 128, 128);
+            freeSerie.ShadowOffset = 1;
+            freeSerie.IsValueShownAsLabel = true;
+            freeSerie.XValueMember = "Months";
+            freeSerie.YValueMembers = "Free";
+            freeSerie.Font = seriesFont;
+            freeSerie.BackSecondaryColor = Color.FromArgb(0, 102, 153);
+            freeSerie.LabelForeColor = Color.FromArgb(50, 50, 50);
+            freeSerie.YAxisType = AxisType.Secondary;
+           
+            
 
+            /*
+            //test x11
+            //create serie...
+            Series serie11 = new Series("Free");
+            serie11.Name = "Serie11";
+            serie11.Color = Color.Red;//Color.FromArgb(112, 255, 200);
+            serie11.BorderColor = Color.Red;//Color.FromArgb(164, 164, 164);
+            serie11.ChartType = SeriesChartType.Spline;
+            //serie1.ChartType = SeriesChartType.Line;
+            serie11.BorderDashStyle = ChartDashStyle.Solid;
+            serie11.BorderWidth = 1;
+            serie11.ShadowColor = Color.FromArgb(128, 128, 128);
+            serie11.ShadowOffset = 1;
+            //serie11.IsValueShownAsLabel = true;
+            serie11.XValueMember = "Months";
+            serie11.YValueMembers = "Free";
+            serie11.Font = new System.Drawing.Font("Consolas", 15.0f);
+            serie11.BackSecondaryColor = Color.FromArgb(0, 102, 153);
+            serie11.LabelForeColor = Color.FromArgb(50, 50, 50);
+            serie11.YAxisType = AxisType.Secondary;
+            serie11.MarkerStyle = MarkerStyle.Star4;
+            */
 
-
-            chart.Series.Add(serie1);
             //create chartareas...
-
             ChartArea ca = new ChartArea();
             ca.Name = "ChartArea1";
             ca.BackColor = Color.White;
             ca.BorderColor = Color.FromArgb(26, 59, 105);
             ca.BorderWidth = 0;
             ca.BorderDashStyle = ChartDashStyle.Solid;
+            
+            
             ca.AxisX = new Axis();
-            ca.AxisY = new Axis();
             ca.AxisX.Minimum = 0;
             ca.AxisX.Interval = 1;
-            ca.AxisX.Maximum = 13;
+            ca.AxisX.Maximum = 12.5;
+            ca.AxisX.Title = "Months";
+            ca.AxisX.TitleFont = axisTitleFont;
+            ca.AxisX.LabelAutoFitMaxFontSize = axisValueMaxFontSize;
 
+            ca.AxisY = new Axis();
+            ca.AxisY.Title = "Used";
+            ca.AxisY.TitleFont = axisTitleFont;
+            ca.AxisY.LabelAutoFitMaxFontSize = axisValueMaxFontSize;
 
             ca.AxisY.Maximum = getAxisYMaxValue(maxValue);//maxValue + intervalValue;
                                                           //ca.AxisY.Interval = intervalValue;
+            //enable Y2
+            ca.AxisY2 = new Axis();
+            ca.AxisY2.Enabled = AxisEnabled.True;
+            ca.AxisY2.Title = "Free";
+            ca.AxisY2.TitleFont = axisTitleFont;
+            ca.AxisY2.LabelAutoFitMaxFontSize = axisValueMaxFontSize;
+            
+            
 
+            //delete grid line
+            ca.AxisX.MajorGrid.Enabled = false;
+            ca.AxisY.MajorGrid.Enabled = false;
+            ca.AxisY2.MajorGrid.Enabled = false;
+
+
+            //chart control...
+            Chart chart = new Chart();
+            chart.Width = 1000;
+            chart.Height = 700;
+            chart.Legends.Add(legend1);
+            chart.DataSource = dataSet.Tables[0];
             chart.ChartAreas.Add(ca);
+            //chart.Series.Add(serie11);
+            chart.Series.Add(usedSerie);
+            chart.Series.Add(freeSerie);
+            
+            //chart title
+            Title title = chart.Titles.Add(serverName);
+            title.Font = new System.Drawing.Font("Consolas", 25, FontStyle.Bold);
+
+
             //databind...
             chart.DataBind();
 
@@ -306,12 +521,8 @@ namespace ConsoleApp4GenerateChart
             //double d = 25678952125.56;
             int v1 = Math.Round(d).ToString().Length;
             long v2 = long.Parse("1".PadRight(v1, '0'));
-
             double v3 = Math.Ceiling(d / v2);
-
             long v4 = v2 / 10;
-
-
             double v5 = v3 * v2 + v4;
 
             return v5;
@@ -464,7 +675,12 @@ namespace ConsoleApp4GenerateChart
 
                     double[] values = chartDataSets[serverName];
                     values[index] = result;
-
+                    //fake data
+                    
+                    Random rnd = new Random();
+                    int r = rnd.Next() % (11 - 0 + 1);
+                    values[index] = (result / 2.0)* r;
+                    
                 }
             }
 
@@ -548,7 +764,7 @@ namespace ConsoleApp4GenerateChart
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex.Message);
+                    Log.Error($"OnEndPage fail. ErrorMsg={ex.Message}. Stacktrace={ex.StackTrace}");
                 }
             }
             public void OnParagraph(PdfWriter writer, Document document, float paragraphPosition) { }
