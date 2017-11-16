@@ -31,7 +31,7 @@ namespace ConsoleApp4GenerateChart
             [Option('o', "output", HelpText = "The full path name of output pdf files.")]
             public string OutputPath { get; set; }
 
-            [Option('d', "debug", HelpText = "Log to files.")]
+            [Option('f', "debug", HelpText = "Log to files.")]
             public bool DebugFlag { get; set; }
 
             [Option('D', "date", HelpText = "Date want to parse.")]

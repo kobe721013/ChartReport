@@ -18,7 +18,7 @@ namespace ConsoleApp4GenerateChart
     class MyReportOutputter
     {
         private Dictionary<string, double[]> tableDataSets = new Dictionary<string, double[]>();
-        private Dictionary<string, double[]> chartDataSets = new Dictionary<string, double[]>();
+        private Dictionary<string, ChartDataSets> chartDataDictionary = new Dictionary<string, ChartDataSets>();
 
 
         private string _DefaultAccessPath = Directory.GetCurrentDirectory();
@@ -26,6 +26,105 @@ namespace ConsoleApp4GenerateChart
         private string _ChartFileNameKey = @"OpsCenter_last_month_disk_usage_";
         private Color _ChartSerieColor = Color.FromArgb(153, 217, 234);
         private BaseFont bfChinese = BaseFont.CreateFont("C:\\Windows\\Fonts\\kaiu.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+
+        internal class ChartDataSets
+        {
+            private string[] units = { "(MB)", "(GB)", "(TB)" };
+
+
+            private double[] m_Free = new double[12];
+            public double[] Free
+            {
+                get { return m_Free; }
+            }
+
+
+
+            private double[] m_Used = new double[12];
+            public double[] Used
+            {
+                get { return m_Used; }
+
+            }
+
+            private int usedUnitIndex = -1;
+            private int freeUnitIndex = -1;
+            public double[] normilizeUsedData()
+            {
+                double[] data = (double[])m_Used.Clone();
+                usedUnitIndex = getUsedUnit(ref data);
+                return data;
+            }
+
+            public double[] normilizeFreeData()
+            {
+                double[] data = (double[])m_Free.Clone();
+                freeUnitIndex = getUsedUnit(ref data);
+                return data;
+            }
+
+
+
+
+            private int getUsedUnit(ref double[] data)
+            {
+
+
+                int i = 0;
+                double max = m_Used.Max();
+                while (max >= 1024.0)
+                {
+                    i++;
+                    max = max / 1024.0;
+                    if (i >= 2) break;
+                }
+                if (i > 0)
+                {
+                    data = data.Select(d => Math.Round(d / Math.Pow(1024.0, i), 1)).ToArray();
+
+                }
+                else {
+                    data = data.Select(d => Math.Round(d, 1)).ToArray();
+                }
+
+                return i;
+
+            }
+
+            public string getFreeUnit()
+            {
+
+                try
+                {
+                    string unit = units[freeUnitIndex];
+                    return unit;
+                }
+                catch (Exception e)
+                {
+                    Debug.Print($"ErrorMessage={e.Message}. Stacktrace={e.StackTrace}");
+                    return "ErrorUnit";
+                }
+
+            }
+
+            public string getUsedUnit()
+            {
+
+                try
+                {
+                    string unit = units[usedUnitIndex];
+                    return unit;
+                }
+                catch (Exception e)
+                {
+                    Debug.Print($"ErrorMessage={e.Message}. Stacktrace={e.StackTrace}");
+                    return "ErrorUnit";
+                }
+
+            }
+
+        }
 
         public void StartBy(string date, string searchDocPath, string outputPath)
         {
@@ -62,7 +161,7 @@ namespace ConsoleApp4GenerateChart
 
         private void cleanTemoFolder()
         {
-            
+
             DirectoryInfo dir = new DirectoryInfo(_DefaultAccessPath);
 
 
@@ -89,7 +188,7 @@ namespace ConsoleApp4GenerateChart
             string tempFolder = DateTime.Now.ToString("yyyyMMddhhmmss") + "_imgtmp";
             string chartTempPath = Path.Combine(Directory.GetCurrentDirectory(), tempFolder);
             Directory.CreateDirectory(chartTempPath);
-            foreach (KeyValuePair<string, double[]> item in chartDataSets)
+            foreach (KeyValuePair<string, ChartDataSets> item in chartDataDictionary)
             {
                 createChart(item.Key, item.Value, Path.Combine(chartTempPath, $"{item.Key}.png"));
             }
@@ -114,7 +213,7 @@ namespace ConsoleApp4GenerateChart
             return true;
         }
 
-        
+
         private void save2Pdf(Dictionary<string, PdfPTable> pdfTables, string chartTempPath, string outputPath)
         {
             Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
@@ -194,7 +293,7 @@ namespace ConsoleApp4GenerateChart
             iTextSharp.text.Font ChFont_green = new iTextSharp.text.Font(bfChinese, 40, iTextSharp.text.Font.NORMAL, BaseColor.GREEN);
             iTextSharp.text.Font ChFont_msg = new iTextSharp.text.Font(bfChinese, 12, iTextSharp.text.Font.ITALIC, BaseColor.RED);
 
-            
+
 
 
 
@@ -265,7 +364,7 @@ namespace ConsoleApp4GenerateChart
             iTextSharp.text.Font ChFont_msg = new iTextSharp.text.Font(bfChinese, 12, iTextSharp.text.Font.ITALIC, BaseColor.RED);
 
             iTextSharp.text.Font chHeaderBoldFont = new iTextSharp.text.Font(bfChinese, 12, iTextSharp.text.Font.BOLD);
-            
+
             iTextSharp.text.Font chBodyFont = new iTextSharp.text.Font(bfChinese, 10, iTextSharp.text.Font.NORMAL);
 
 
@@ -304,7 +403,7 @@ namespace ConsoleApp4GenerateChart
                 cell.BackgroundColor = hightlightBackground;
                 cell.HorizontalAlignment = Element.ALIGN_CENTER;
                 cell.VerticalAlignment = Element.ALIGN_CENTER;
-                cell.Padding = 5;   
+                cell.Padding = 5;
                 pt.AddCell(cell);
             }
 
@@ -332,7 +431,7 @@ namespace ConsoleApp4GenerateChart
 
 
 
-           
+
             return pt;
 
 
@@ -352,7 +451,7 @@ namespace ConsoleApp4GenerateChart
             return pt;
         }
 
-        private void createChart(string serverName, double[] values, string imageName)
+        private void createChart(string serverName, ChartDataSets serverData, string imageName)
         {
             System.Drawing.Font seriesFont = new System.Drawing.Font("Consolas", 13.0f);
             System.Drawing.Font axisTitleFont = new System.Drawing.Font("Consolas", 20.0f, FontStyle.Regular);
@@ -366,15 +465,29 @@ namespace ConsoleApp4GenerateChart
             dt.Columns.Add("Free", typeof(double));
             DataRow r1 = dt.NewRow();
 
-            double maxValue = values.Max();
-            double intervalValue = maxValue / 10.0;
+
+
+
+
+
+
+            //used
+            double[] usedValues = serverData.normilizeUsedData();
+            double usedMaxValue = usedValues.Max();
+            string usedUnit = serverData.getUsedUnit();
+            double intervalValue = usedMaxValue / 10.0;
+
+            //free
+            double[] freeValues = serverData.normilizeFreeData();
+            double freeMaxValue = freeValues.Max();
+            string freeUnit = serverData.getFreeUnit();
 
             for (int i = 0; i < 12; i++)
             {
                 DataRow r = dt.NewRow();
                 r[0] = i + 1;//months
-                r[1] = values[i];//used
-                r[2] = (double)values[i];//free
+                r[1] = usedValues[i];//used
+                r[2] = freeValues[i];//free
                 dt.Rows.Add(r);
             }
             dataSet.Tables.Add(dt);
@@ -389,13 +502,13 @@ namespace ConsoleApp4GenerateChart
 
 
             //create Used serie...
-            Series usedSerie = new Series("Used");
+            Series usedSerie = new Series("Used" + usedUnit);
             usedSerie.Color = _ChartSerieColor;//Color.FromArgb(112, 255, 200);
             usedSerie.BorderColor = Color.FromArgb(164, 164, 164);
-            usedSerie.ChartType = SeriesChartType.Column;
+            usedSerie.ChartType = SeriesChartType.Line;
 
             usedSerie.BorderDashStyle = ChartDashStyle.Solid;
-            usedSerie.BorderWidth = 1;
+            usedSerie.BorderWidth = 5;
             usedSerie.ShadowColor = Color.FromArgb(128, 128, 128);
             usedSerie.ShadowOffset = 1;
             usedSerie.IsValueShownAsLabel = true;
@@ -404,18 +517,18 @@ namespace ConsoleApp4GenerateChart
             usedSerie.Font = seriesFont;
             usedSerie.BackSecondaryColor = Color.FromArgb(0, 102, 153);
             usedSerie.LabelForeColor = Color.FromArgb(50, 50, 50);
-            
-            
-            
+            usedSerie.MarkerStyle = MarkerStyle.Diamond;
+            usedSerie.MarkerBorderWidth = 5;
+
 
             //Free series...
-            Series freeSerie = new Series("Free");
+            Series freeSerie = new Series("Free" + freeUnit);
             freeSerie.Color = Color.Orange;//Color.FromArgb(112, 255, 200);
             //serie2.BorderColor = Color.Red;//Color.FromArgb(164, 164, 164);
-            freeSerie.ChartType = SeriesChartType.Column;
+            freeSerie.ChartType = SeriesChartType.Line;
             //serie1.ChartType = SeriesChartType.Line;
             freeSerie.BorderDashStyle = ChartDashStyle.Solid;
-            freeSerie.BorderWidth = 1;
+            freeSerie.BorderWidth = 2;
             freeSerie.ShadowColor = Color.FromArgb(128, 128, 128);
             freeSerie.ShadowOffset = 1;
             freeSerie.IsValueShownAsLabel = true;
@@ -425,8 +538,8 @@ namespace ConsoleApp4GenerateChart
             freeSerie.BackSecondaryColor = Color.FromArgb(0, 102, 153);
             freeSerie.LabelForeColor = Color.FromArgb(50, 50, 50);
             freeSerie.YAxisType = AxisType.Secondary;
-           
-            
+            freeSerie.MarkerStyle = MarkerStyle.Square;
+            freeSerie.MarkerBorderWidth = 2;
 
             /*
             //test x11
@@ -458,8 +571,8 @@ namespace ConsoleApp4GenerateChart
             ca.BorderColor = Color.FromArgb(26, 59, 105);
             ca.BorderWidth = 0;
             ca.BorderDashStyle = ChartDashStyle.Solid;
-            
-            
+
+
             ca.AxisX = new Axis();
             ca.AxisX.Minimum = 0;
             ca.AxisX.Interval = 1;
@@ -473,16 +586,15 @@ namespace ConsoleApp4GenerateChart
             ca.AxisY.TitleFont = axisTitleFont;
             ca.AxisY.LabelAutoFitMaxFontSize = axisValueMaxFontSize;
 
-            ca.AxisY.Maximum = getAxisYMaxValue(maxValue);//maxValue + intervalValue;
-                                                          //ca.AxisY.Interval = intervalValue;
-            //enable Y2
+            ca.AxisY.Maximum = getAxisYMaxValue(usedMaxValue);//maxValue + intervalValue;
+                                                              //ca.AxisY.Interval = intervalValue;
+                                                              //enable Y2
             ca.AxisY2 = new Axis();
             ca.AxisY2.Enabled = AxisEnabled.True;
             ca.AxisY2.Title = "Free";
             ca.AxisY2.TitleFont = axisTitleFont;
             ca.AxisY2.LabelAutoFitMaxFontSize = axisValueMaxFontSize;
-            
-            
+            ca.AxisY2.Maximum = getAxisYMaxValue(freeMaxValue);
 
             //delete grid line
             ca.AxisX.MajorGrid.Enabled = false;
@@ -500,7 +612,7 @@ namespace ConsoleApp4GenerateChart
             //chart.Series.Add(serie11);
             chart.Series.Add(usedSerie);
             chart.Series.Add(freeSerie);
-            
+
             //chart title
             Title title = chart.Titles.Add(serverName);
             title.Font = new System.Drawing.Font("Consolas", 25, FontStyle.Bold);
@@ -562,8 +674,33 @@ namespace ConsoleApp4GenerateChart
                 regexParseChartFile(Path.Combine(path, filename), month);
 
             }
+
+            //test fake data
+            FakeData();
         }
 
+        private void FakeData()
+        {
+            Debug.Print("Fake data go");
+            foreach (KeyValuePair<string, ChartDataSets> item in chartDataDictionary)
+            {
+                for (int i = 0; i <= 11; i++)
+                {
+                    var chartSets = item.Value;
+                    if (i > 0 && i <= 5)
+                    {
+
+                        chartSets.Used[i] = chartSets.Used[i - 1] + 100000;
+                        chartSets.Free[i] = chartSets.Free[i - 1] - 100000;
+                    }
+                    else if (i > 0 && i <= 11)
+                    {
+                        chartSets.Used[i] = chartSets.Used[i - 1] - 100000;
+                        chartSets.Free[i] = chartSets.Free[i - 1] + 100000;
+                    }
+                }
+            }
+        }
 
         private string getFileNameBy(string path, string key, int year, int month)
         {
@@ -643,13 +780,13 @@ namespace ConsoleApp4GenerateChart
 
         }
 
-        private double regexParseChartFile(string fileName, int index)
+        private double regexParseChartFile(string fileName, int monthIndex)
         {
             string[] lines = File.ReadAllLines(fileName);
 
 
 
-            string pattern = @"^(?<AAA>[a-zA-Z\d-_\s]*),(?<ServerName>[a-zA-Z\d-_\s]*),(?<CCC>[a-zA-Z\d-_\s]*),(?<DDD>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<DiskPollUsedCapacity>""[\d*,?]*[.\d *]*""|\d*[.\d*]*),(?<FFF>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<GGG>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<HHH>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<III>.*)$";
+            string pattern = @"^(?<AAA>[a-zA-Z\d-_\s]*),(?<ServerName>[a-zA-Z\d-_\s]*),(?<CCC>[a-zA-Z\d-_\s]*),(?<DiskPoolUsableSize>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<DiskPollUsedCapacity>""[\d*,?]*[.\d *]*""|\d*[.\d*]*),(?<FFF>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<GGG>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<HHH>""[\d*,?]*[.\d*]*""|\d*[.\d*]*),(?<III>.*)$";
 
 
 
@@ -659,28 +796,36 @@ namespace ConsoleApp4GenerateChart
                 Match match = Regex.Match(line, pattern);
                 if (match.Success)
                 {
-                    System.Diagnostics.Debug.WriteLine($"AAA={match.Groups["AAA"].ToString()}, ServerName={match.Groups["ServerName"].ToString()}, CCC={match.Groups["CCC"].ToString()}, DDD={match.Groups["DDD"].ToString()}, DiskPollUsedCapacity={match.Groups["DiskPollUsedCapacity"].ToString()}, FFF={match.Groups["FFF"].ToString()}, GGG={match.Groups["GGG"].ToString()}, HHH={match.Groups["HHH"].ToString()}, III={match.Groups["III"].ToString()}");
+                    System.Diagnostics.Debug.WriteLine($"AAA={match.Groups["AAA"].ToString()}, ServerName={match.Groups["ServerName"].ToString()}, CCC={match.Groups["CCC"].ToString()}, DiskPoolUsableSize={match.Groups["DiskPoolUsableSize"].ToString()}, DiskPollUsedCapacity={match.Groups["DiskPollUsedCapacity"].ToString()}, FFF={match.Groups["FFF"].ToString()}, GGG={match.Groups["GGG"].ToString()}, HHH={match.Groups["HHH"].ToString()}, III={match.Groups["III"].ToString()}");
 
-                    string temp = match.Groups["DiskPollUsedCapacity"].ToString().Replace(",", string.Empty).Replace("\"", string.Empty); ;
-                    double result = Double.Parse(temp);
+                    string temp = match.Groups["DiskPollUsedCapacity"].ToString().Replace(",", string.Empty).Replace("\"", string.Empty);
+                    double used = Double.Parse(temp);
+
+                    temp = match.Groups["DiskPoolUsableSize"].ToString().Replace(",", string.Empty).Replace("\"", string.Empty); ;
+                    double free = Double.Parse(temp);
 
                     string serverName = match.Groups["ServerName"].ToString();
 
-                    if (!chartDataSets.ContainsKey(serverName))
+                    if (!chartDataDictionary.ContainsKey(serverName))
                     {
-                        chartDataSets.Add(serverName, new double[12]);
+                        chartDataDictionary.Add(serverName, new ChartDataSets());
                     }
 
 
 
-                    double[] values = chartDataSets[serverName];
-                    values[index] = result;
+                    chartDataDictionary[serverName].Used[monthIndex] = used;
+                    chartDataDictionary[serverName].Free[monthIndex] = free;
+
+
+                    /*
                     //fake data
-                    
+
+
                     Random rnd = new Random();
-                    int r = rnd.Next() % (11 - 0 + 1);
-                    values[index] = (result / 2.0)* r;
-                    
+                    int r = rnd.Next(1, 12);
+                    chartDataDictionary[serverName].used[monthIndex] = Math.Round((chartDataDictionary[serverName].used[monthIndex]), 1);
+                    chartDataDictionary[serverName].free[monthIndex] = Math.Round((chartDataDictionary[serverName].free[monthIndex]), 1);
+                    */
                 }
             }
 
